@@ -33,9 +33,14 @@ history = scraper.get_history()
 - **Concurrent**: 10 parallel threads
 
 ### Historical Storage
-- **CSV format**: `data/history.csv`
+- **CSV format**: Separate files for A股 and 港股通
 - **Auto-cleanup**: Keeps last 30 days only
 - **Fields**: `stock_name`, `stock_id`, `p_YYYYMMDD`
+
+### Stock Search
+- **Search by name**: Fuzzy match stock names (e.g., '茅台', '腾讯')
+- **Search by code**: Match stock codes (e.g., '600519', '00700')
+- **Auto-detect market**: Automatically finds stock in A股 or 港股通
 
 ## Data Sources
 
@@ -97,11 +102,32 @@ scraper.update_history(quotes)
 ### Get Historical Data
 
 ```python
-# Get all history
-history = scraper.get_history()
+# Get single stock history (auto-detect A股/港股通)
+stock = scraper.get_stock_history('sh600000')
+print(f"{stock['stock_name']}: {stock}")
 
-# Get specific stock history
-stock_history = scraper.get_history('sh600000')
+# Get all A股 history
+a_history = scraper.get_a_history()
+
+# Get all 港股通 history
+hk_history = scraper.get_hk_history()
+
+# Get specific stock from A股
+stock = scraper.get_a_history('sh600000')
+```
+
+### Search Stocks by Name
+
+```python
+# Search by stock name or code
+results = scraper.search_stock('茅台')
+# Returns: [{'stock_name': '贵州茅台', 'stock_id': 'sh600519', ...}]
+
+results = scraper.search_stock('腾讯')
+# Returns: [{'stock_name': 'TENCENT', 'stock_id': 'hk00700', ...}]
+
+results = scraper.search_stock('600036')
+# Returns: [{'stock_name': '招商银行', 'stock_id': 'sh600036', ...}]
 ```
 
 ### CSV Format

@@ -405,6 +405,56 @@ class StockScraper:
             return []
         
         return list(history.values())
+    
+    def get_stock_history(self, stock_id: str) -> Dict:
+        """
+        Get historical data for a single stock (auto-detect market type)
+        
+        Args:
+            stock_id: Stock ID (e.g., 'sh600000', 'sz000001', 'hk00700')
+        
+        Returns:
+            Dict with stock info and price history, or empty dict if not found
+        """
+        # Auto-detect market type
+        if stock_id.startswith('hk'):
+            history = self._load_history(self.hk_history_file)
+        else:
+            history = self._load_history(self.a_history_file)
+        
+        if stock_id in history:
+            return history[stock_id]
+        
+        return {}
+    
+    def search_stock(self, keyword: str) -> List[Dict]:
+        """
+        Search stocks by name or code (fuzzy match)
+        
+        Args:
+            keyword: Search keyword (e.g., '茅台', '600519', '腾讯')
+        
+        Returns:
+            List of matching stocks with history data
+        """
+        results = []
+        keyword_lower = keyword.lower()
+        
+        # Search in A股 history
+        a_history = self._load_history(self.a_history_file)
+        for stock_id, data in a_history.items():
+            name = data.get('stock_name', '').lower()
+            if keyword_lower in name or keyword_lower in stock_id.lower():
+                results.append(data)
+        
+        # Search in 港股通 history
+        hk_history = self._load_history(self.hk_history_file)
+        for stock_id, data in hk_history.items():
+            name = data.get('stock_name', '').lower()
+            if keyword_lower in name or keyword_lower in stock_id.lower():
+                results.append(data)
+        
+        return results
 
 
 def main():
