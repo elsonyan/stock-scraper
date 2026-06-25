@@ -33,7 +33,7 @@ history = scraper.get_history()
 - **Concurrent**: 10 parallel threads
 
 ### Historical Storage
-- **CSV format**: Separate files for A股 and 港股通
+- **Markdown format**: Separate files for A股 and 港股通 with table structure
 - **Auto-cleanup**: Keeps last 30 days only
 - **Fields**: `stock_name`, `stock_id`, `p_YYYYMMDD`
 
@@ -95,7 +95,7 @@ all_quotes = {**a_quotes, **hk_quotes}
 quotes = scraper.get_quotes(['sh600000', 'hk00700'])
 scraper.update_history(quotes)
 
-# History is saved to data/history.csv
+# History is saved to data/a_history.md and data/hk_history.md
 # Old data (>30 days) is automatically removed
 ```
 
@@ -130,12 +130,13 @@ results = scraper.search_stock('600036')
 # Returns: [{'stock_name': '招商银行', 'stock_id': 'sh600036', ...}]
 ```
 
-### CSV Format
+### Markdown Table Format
 
 ```
-stock_name,stock_id,p_20260624,p_20260623,...
-TENCENT,hk00700,429.4,428.8,...
-浦发银行,sh600000,8.9,8.85,...
+| stock_name | stock_id | p_20260624 | p_20260623 | ... |
+| --- | --- | --- | --- | ... |
+| TENCENT | hk00700 | 429.4 | 428.8 | ... |
+| 浦发银行 | sh600000 | 8.9 | 8.85 | ... |
 ```
 
 ## Performance
@@ -154,10 +155,12 @@ stock-scraper/
 │   └── stock_api.py
 ├── references/
 │   └── api_docs.md
-├── examples/
-│   └── quick_start.py
-└── data/
-    └── history.csv      # Auto-generated
+└── examples/
+    └── quick_start.py
+
+data/                     # Project root data directory
+├── a_history.md          # A股 history (markdown table)
+└── hk_history.md         # 港股通 history (markdown table)
 ```
 
 ## Guardrails

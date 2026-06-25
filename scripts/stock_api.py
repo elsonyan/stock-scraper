@@ -6,7 +6,6 @@ Optimized for batch queries with 新浪财经 API
 
 import requests
 import time
-import csv
 import os
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -24,18 +23,22 @@ class StockScraper:
         self.batch_size = 500
         self.max_workers = 10
         
-        # Set data directory
+        # Set data directory - default to project root's data/ folder
         if data_dir is None:
-            self.data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')
+            # Find project root (parent of stock-scraper)
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            skill_dir = os.path.dirname(current_dir)
+            project_root = os.path.dirname(skill_dir)
+            self.data_dir = os.path.join(project_root, 'data')
         else:
             self.data_dir = data_dir
         
         # Create data directory if it doesn't exist
         os.makedirs(self.data_dir, exist_ok=True)
         
-        # History file paths
-        self.a_history_file = os.path.join(self.data_dir, 'a_history.csv')
-        self.hk_history_file = os.path.join(self.data_dir, 'hk_history.csv')
+        # History file paths (markdown format)
+        self.a_history_file = os.path.join(self.data_dir, 'a_history.md')
+        self.hk_history_file = os.path.join(self.data_dir, 'hk_history.md')
     
     def _parse_sina_response(self, text: str) -> Dict[str, Dict]:
         """Parse 新浪财经 response format"""
@@ -185,7 +188,7 @@ class StockScraper:
         return self.get_quotes(indices)
     
     def _load_history(self, file_path: str) -> Dict[str, Dict]:
-        """Load existing history from CSV"""
+        """Load existing history from markdown table"""
         history = {}
         
         if not os.path.exists(file_path):
@@ -193,8 +196,34 @@ class StockScraper:
         
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
+                lines = f.readlines()
+                
+                # Find header line (starts with |)
+                header_idx = None
+                for i, line in enumerate(lines):
+                    if line.strip().startswith('|'):
+                        header_idx = i
+                        break
+                
+                if header_idx is None:
+                    return history
+                
+                # Parse header
+                header = [col.strip() for col in lines[header_idx].split('|')[1:-1]]
+                
+                # Skip separator line (|---|---|)
+                data_start = header_idx + 2
+                
+                # Parse data rows
+                for line in lines[data_start:]:
+                    if not line.strip().startswith('|'):
+                        continue
+                    
+                    values = [val.strip() for val in line.split('|')[1:-1]]
+                    if len(values) < 2:
+                        continue
+                    
+                    row = dict(zip(header, values))
                     stock_id = row.get('stock_id')
                     if stock_id:
                         history[stock_id] = row
@@ -204,7 +233,7 @@ class StockScraper:
         return history
     
     def _save_history(self, history: Dict[str, Dict], file_path: str):
-        """Save history to CSV"""
+        """Save history to markdown table"""
         if not history:
             return
         
@@ -218,26 +247,26 @@ class StockScraper:
         # Sort date columns
         date_columns = sorted(date_columns)
         
-        # Define fieldnames
-        fieldnames = ['stock_name', 'stock_id'] + date_columns
+        # Define columns
+        columns = ['stock_name', 'stock_id'] + date_columns
         
         try:
-            with open(file_path, 'w', encoding='utf-8', newline='') as f:
-                writer = csv.DictWriter(f, fieldnames=fieldnames)
-                writer.writeheader()
+            with open(file_path, 'w', encoding='utf-8') as f:
+                # Write header
+                f.write('| ' + ' | '.join(columns) + ' |\n')
                 
+                # Write separator
+                f.write('| ' + ' | '.join(['---'] * len(columns)) + ' |\n')
+                
+                # Write data rows
                 for stock_id, row in sorted(history.items()):
-                    # Create row with only the fields we want
-                    cleaned_row = {
-                        'stock_name': row.get('stock_name', ''),
-                        'stock_id': stock_id
-                    }
-                    
-                    # Add price data for each date
-                    for col in date_columns:
-                        cleaned_row[col] = row.get(col, '')
-                    
-                    writer.writerow(cleaned_row)
+                    values = []
+                    for col in columns:
+                        if col == 'stock_id':
+                            values.append(stock_id)
+                        else:
+                            values.append(str(row.get(col, '')))
+                    f.write('| ' + ' | '.join(values) + ' |\n')
             
             print(f"Saved {len(history)} stocks to {file_path}")
         except Exception as e:
@@ -268,7 +297,7 @@ class StockScraper:
     
     def update_a_history(self, stocks: Dict[str, Dict]):
         """
-        Update A股 history CSV with new stock data
+        Update A股 history markdown table with new stock data
         
         Args:
             stocks: Dict of A股 stock quotes
@@ -308,7 +337,7 @@ class StockScraper:
     
     def update_hk_history(self, stocks: Dict[str, Dict]):
         """
-        Update 港股通 history CSV with new stock data
+        Update 港股通 history markdown table with new stock data
         
         Args:
             stocks: Dict of 港股通 stock quotes
@@ -348,7 +377,7 @@ class StockScraper:
     
     def update_history(self, stocks: Dict[str, Dict]):
         """
-        Update history CSV with new stock data (auto-detect market type)
+        Update history markdown tables with new stock data (auto-detect market type)
         
         Args:
             stocks: Dict of stock quotes
